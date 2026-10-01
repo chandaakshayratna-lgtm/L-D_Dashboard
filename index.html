@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Learning & Development Insights Dashboard</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- SheetJS for Excel Uploads -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+    <!-- Chart.js for Visualizations -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        .glass-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border: 1px solid rgba(226, 232, 240, 0.8); }
+        .chart-container { position: relative; height: 300px; width: 100%; }
+        #gemini-insights h3 { font-size: 1.125rem; font-weight: 600; margin-top: 1rem; color: #1e293b; }
+        #gemini-insights p { margin-top: 0.5rem; margin-bottom: 0.5rem; }
+        #gemini-insights ul { list-style-type: disc; margin-left: 1.5rem; margin-top: 0.5rem; }
+        #gemini-insights strong { color: #0f172a; }
+        
+        /* Custom Scrollbar for tables */
+        .table-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+        .table-scroll::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
+        .table-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .table-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body class="text-slate-800">
+
+    <nav class="bg-slate-900 text-white shadow-lg sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center gap-3">
+                    <div class="bg-blue-600 p-2 rounded-lg">
+                        <i class="fa-solid fa-graduation-cap text-xl"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-xl font-bold tracking-tight">L&D Intelligence</h1>
+                        <p class="text-xs text-slate-400">Executive Dashboard & Analytics</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-4">
+                    <label class="cursor-pointer bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm flex items-center gap-2">
+                        <i class="fa-solid fa-upload"></i> Upload Excel Data
+                        <input type="file" id="excel-upload" accept=".xlsx, .xls, .csv" class="hidden">
+                    </label>
+                    <button id="load-sample-btn" class="text-sm font-medium text-slate-300 hover:text-white transition-colors underline">
+                        Load Sample Data
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        
+        <!-- Global Filters -->
+        <section class="glass-card rounded-xl p-5 shadow-sm">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-semibold text-slate-800"><i class="fa-solid fa-filter text-blue-500 mr-2"></i> Global Filters</h2>
+                <button id="reset-filters" class="text-sm text-slate-500 hover:text-blue-600 font-medium transition-colors">Reset All</button>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4" id="filters-container">
+                <!-- Filters injected via JS -->
+            </div>
+        </section>
+
+        <!-- Key Metrics -->
+        <section class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="glass-card rounded-xl p-6 shadow-sm flex items-center gap-5 border-l-4 border-l-blue-500">
+                <div class="w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-2xl">
+                    <i class="fa-solid fa-users"></i>
+                </div>
+                <div>
+                    <p class="text-sm font-medium text-slate-500">Total Participation</p>
+                    <p class="text-3xl font-bold text-slate-800" id="kpi-total-participation">0</p>
+                    <p class="text-xs text-slate-400 mt-1">Sum of Enrollments</p>
+                </div>
+            </div>
+
+            <div class="glass-card rounded-xl p-6 shadow-sm flex items-center gap-5 border-l-4 border-l-indigo-500">
+                <div class="w-14 h-14 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 text-2xl">
+                    <i class="fa-solid fa-user-check"></i>
+                </div>
+                <div>
+                    <p class="text-sm font-medium text-slate-500">Unique Participation</p>
+                    <p class="text-3xl font-bold text-slate-800" id="kpi-unique-participation">0</p>
+                    <p class="text-xs text-slate-400 mt-1">Distinct Employee IDs</p>
+                </div>
+            </div>
+
+            <div class="glass-card rounded-xl p-6 shadow-sm flex items-center gap-5 border-l-4 border-l-emerald-500">
+                <div class="w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 text-2xl">
+                    <i class="fa-solid fa-clock"></i>
+                </div>
+                <div>
+                    <p class="text-sm font-medium text-slate-500">Total Training Duration</p>
+                    <p class="text-3xl font-bold text-slate-800" id="kpi-total-duration">0 <span class="text-lg text-slate-500 font-medium">hrs</span></p>
+                    <p class="text-xs text-slate-400 mt-1">Sum of Logged Hours</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Main Chart Section -->
+        <section class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="glass-card rounded-xl p-5 shadow-sm">
+                <h3 class="text-md font-semibold text-slate-800 mb-4 border-b pb-2">Category Distribution</h3>
+                <div class="chart-container flex justify-center">
+                    <canvas id="chart-category"></canvas>
+                </div>
+            </div>
+
+            <div class="glass-card rounded-xl p-5 shadow-sm">
+                <h3 class="text-md font-semibold text-slate-800 mb-4 border-b pb-2">Location Focus</h3>
+                <div class="chart-container">
+                    <canvas id="chart-location"></canvas>
+                </div>
+            </div>
+
+            <div class="glass-card rounded-xl p-5 shadow-sm">
+                <h3 class="text-md font-semibold text-slate-800 mb-4 border-b pb-2">Operations Head Overview</h3>
+                <div class="chart-container">
+                    <canvas id="chart-ops"></canvas>
+                </div>
+            </div>
+
+            <div class="glass-card rounded-xl p-5 shadow-sm">
+                <h3 class="text-md font-semibold text-slate-800 mb-4 border-b pb-2">Designation Focus</h3>
+                <div class="chart-container">
+                    <canvas id="chart-designation"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- Strategic Insights Section -->
+        <section class="space-y-6">
+            <div class="flex items-center justify-between border-b border-slate-200 pb-3">
+                <h2 class="text-xl font-bold text-slate-900 flex items-center gap-2">
+                    <i class="fa-solid fa-chart-line text-indigo-600"></i> Strategic Insights
+                </h2>
+                <span class="text-xs bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full font-semibold">Executive View</span>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- DEI & Access -->
+                <div class="glass-card rounded-xl p-5 shadow-sm">
+                    <h3 class="text-md font-semibold text-slate-800 mb-1">DEI & Access: Category by Gender</h3>
+                    <p class="text-xs text-slate-500 mb-4">Gender ratio per non-mandatory training category (highest to lowest)</p>
+                    <div class="chart-container">
+                        <canvas id="chart-dei"></canvas>
+                    </div>
+                </div>
+
+                <!-- Efficiency: Completion Rates -->
+                <div class="glass-card rounded-xl p-5 shadow-sm">
+                    <h3 class="text-md font-semibold text-slate-800 mb-1">Efficiency: Completion Numbers</h3>
+                    <p class="text-xs text-slate-500 mb-4">Completions per mandatory parent training category</p>
+                    <div class="chart-container">
+                        <canvas id="chart-mandatory-completion"></canvas>
+                    </div>
+                </div>
+
+                <!-- Investment by Country -->
+                <div class="glass-card rounded-xl p-5 shadow-sm">
+                    <h3 class="text-md font-semibold text-slate-800 mb-1">Investment: Total Hours by Country</h3>
+                    <p class="text-xs text-slate-500 mb-4">Total training hours delivered per country</p>
+                    <div class="chart-container">
+                        <canvas id="chart-country-hours"></canvas>
+                    </div>
+                </div>
+
+                <!-- Future Readiness: Modality Shift -->
+                <div class="glass-card rounded-xl p-5 shadow-sm">
+                    <h3 class="text-md font-semibold text-slate-800 mb-1">Future-Readiness: Modality Shift</h3>
+                    <p class="text-xs text-slate-500 mb-4">Completers count per year (Instructor-Led vs Self-Paced, excluding Mandatory)</p>
+                    <div class="chart-container">
+                        <canvas id="chart-modality-shift"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dynamic Tables Section -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                
+                <!-- Top Strategic Trainers Table -->
+                <div class="glass-card rounded-xl p-6 shadow-sm flex flex-col h-96">
+                    <h3 class="text-md font-semibold text-slate-800 mb-1">Top Strategic Trainers Utilization</h3>
+                    <p class="text-xs text-slate-500 mb-4">Performance breakdown for designated strategic internal trainers</p>
+                    <div class="overflow-y-auto overflow-x-auto table-scroll flex-grow">
+                        <table class="w-full text-left text-sm text-slate-600">
+                            <thead class="bg-slate-100 text-slate-700 text-xs uppercase font-semibold sticky top-0 shadow-sm z-10">
+                                <tr>
+                                    <th class="p-3 rounded-l-lg">Trainer Name</th>
+                                    <th class="p-3">Courses</th>
+                                    <th class="p-3">Learners Reached</th>
+                                    <th class="p-3 rounded-r-lg">Duration (Hrs)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="trainers-table-body" class="divide-y divide-slate-100">
+                                <!-- Injected via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Individual Training Undergone Table -->
+                <div class="glass-card rounded-xl p-6 shadow-sm flex flex-col h-96">
+                    <h3 class="text-md font-semibold text-slate-800 mb-1">Individual Training Breakdown</h3>
+                    <p class="text-xs text-slate-500 mb-4">Total completers and equivalent hours mapped by specific course</p>
+                    <div class="overflow-y-auto overflow-x-auto table-scroll flex-grow">
+                        <table class="w-full text-left text-sm text-slate-600">
+                            <thead class="bg-slate-100 text-slate-700 text-xs uppercase font-semibold sticky top-0 shadow-sm z-10">
+                                <tr>
+                                    <th class="p-3 rounded-l-lg">Training Undergone</th>
+                                    <th class="p-3">Completers</th>
+                                    <th class="p-3 rounded-r-lg">Total Hours</th>
+                                </tr>
+                            </thead>
+                            <tbody id="training-undergone-table-body" class="divide-y divide-slate-100">
+                                <!-- Injected via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- AI Consultative Insights Card -->
+        <section class="glass-card rounded-xl p-6 shadow-sm border border-indigo-100 flex flex-col relative overflow-hidden">
+            <div class="flex items-center justify-between mb-4 border-b border-indigo-100 pb-3">
+                <h3 class="text-lg font-semibold text-indigo-900 flex items-center gap-2">
+                    <i class="fa-solid fa-sparkles text-amber-500"></i> AI Consultative Insights
+                </h3>
+                <div class="flex items-center gap-2">
+                    <button id="btn-set-api-key" class="text-xs bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-2 rounded-md font-medium transition-colors">
+                        🔑 API Key Settings
+                    </button>
+                    <button id="btn-generate-insights" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors shadow flex items-center gap-2">
+                        Generate Gemini Insights
+                    </button>
+                </div>
+            </div>
+            
+            <div id="gemini-insights-container" class="flex-grow flex flex-col">
+                <div id="insights-empty-state" class="flex flex-col items-center justify-center flex-grow py-8 text-center text-slate-400">
+                    <i class="fa-solid fa-robot text-4xl mb-3 opacity-20"></i>
+                    <p>Click "Generate Gemini Insights" to produce executive-level L&D recommendations based on your active filters.</p>
+                </div>
+                <div id="insights-loading" class="hidden flex-col items-center justify-center flex-grow py-8">
+                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mb-3"></div>
+                    <p class="text-sm text-slate-500 font-medium animate-pulse">Analyzing L&D metrics & generating consultative report...</p>
+                </div>
+                <div id="gemini-insights" class="hidden text-sm text-slate-700 leading-relaxed pr-2 space-y-3">
+                    <!-- AI content injected here -->
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        // Global State
+        let rawData = [];
+        let filteredData = [];
+        let charts = {};
+        
+        // Updated filter sequence with CEO Name added and Designation removed
+        const filterColumns = [
+            "Parent Training", "Trainer's Name", "Modality", "Category", 
+            "Gender", "Entity", "Segment", "Function", "Country", 
+            "Location", "CEO Name", "BU Head", "Ops Head"
+        ];
+        
+        let activeFilters = {};
+
+        const strategicTrainersList = [
+            "William Suarez", "Kathleen Pua", "Maria Flona Amor-Odevilas", "Maria Flona Amor Odevilas",
+            "Reyes Eleanor Anne", "Grady Moses David", "Chinnaraj D", "Chanda Akshayratna",
+            "Sofia Kirubalani Namachivayam S", "The Star In Me", "Fernando Son Calleja",
+            "Rubeena Kauser S", "Jerlyn Lou Grapa", "Tanika Kawatra", "Christina Dourado",
+            "Sharmistha Maity", "Paramita Kar", "Deepti Menon", "Rajat Sanan"
+        ];
+
+        function getPluralLabel(col) {
+            if (col === "Trainer's Name" || col === "Trainer'S Name") return "All Trainers";
+            if (col === "Parent Training") return "All Parent Trainings";
+            if (col.endsWith('y') || col.endsWith('Y')) return "All " + col.slice(0, -1) + "ies";
+            if (col.endsWith('s') || col.endsWith('S')) return "All " + col;
+            return "All " + col + "s";
+        }
+
+        function normalizeRow(row) {
+            const findKey = (candidates) => {
+                for (let cand of candidates) {
+                    for (let key in row) {
+                        if (key.trim().toLowerCase() === cand.toLowerCase()) return row[key];
+                    }
+                }
+                for (let cand of candidates) {
+                    for (let key in row) {
+                        if (key.trim().toLowerCase().includes(cand.toLowerCase())) return row[key];
+                    }
+                }
+                return '';
+            };
+
+            return {
+                ...row,
+                'Training Undergone': findKey(['Training Undergone', 'Training Name']) || row['Training Undergone'] || row['Training Name'] || row['Parent Training'] || 'Unknown',
+                'Parent Training': findKey(['Parent Training']) || row['Parent Training'] || '',
+                'Modality': findKey(['Modality']) || row['Modality'] || '',
+                'Category': findKey(['Category']) || row['Category'] || row['Training Genre'] || '',
+                'Year': row['Year'] || '',
+                'Gender': findKey(['Gender']) || row['Gender'] || '',
+                'Entity': findKey(['Entity']) || row['Entity'] || '',
+                'Location': findKey(['Location']) || row['Location'] || '',
+                'Country': findKey(['Country']) || row['Country'] || '',
+                'Designation': findKey(['Designation']) || row['Designation'] || '',
+                'Function': findKey(['Function']) || row['Function'] || '',
+                'Segment': findKey(['Segment']) || row['Project Segment'] || '',
+                'CEO Name': findKey(['CEO-1', 'CEO Name']) || row['CEO-1'] || row['CEO Name'] || '',
+                'BU Head': findKey(['BU Head']) || row['BU Head'] || '',
+                'Ops Head': findKey(['Ops Head']) || row['Ops Head'] || '',
+                "Trainer's Name": findKey(["Trainer's Name", "Trainer'S Name", "Trainer Name"]) || row["Trainer'S Name"] || row["Trainer's Name"] || '',
+                'Training Status': findKey(['Training Status', 'Transaction Status', 'Status']) || row['Training Status'] || '',
+                'Employee Id': findKey(['Employee Id', 'Employee ID', 'Emp Id', 'ID']) || row['Employee Id'] || '',
+                'Duration': findKey(['Duration [Hh:Mm]', 'Duration Decimal', 'Duration', 'Training Duration']) || row['Duration [Hh:Mm]'] || 0
+            };
+        }
+
+        function parseDuration(val) {
+            if (!val) return 0;
+            if (typeof val === 'number') return val * 24;
+            if (typeof val === 'string') {
+                const parts = val.split(':');
+                if (parts.length >= 2) return (parseFloat(parts[0]) || 0) + ((parseFloat(parts[1]) || 0) / 60);
+                return parseFloat(val) || 0;
+            }
+            return 0;
+        }
+
+        function aggregateData(data, key) {
+            const counts = {};
+            data.forEach(row => {
+                let val = row[key] || 'Unknown';
+                val = String(val).trim();
+                if (val === '') val = 'Unknown';
+                counts[val] = (counts[val] || 0) + 1;
+            });
+            return Object.entries(counts).sort((a, b) => b[1] - a[1]);
+        }
+
+        // Excel file handling
+        document.getElementById('excel-upload').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const data = new Uint8Array(e.target.result);
+                try {
+                    const workbook = XLSX.read(data, {type: 'array'});
+                    let sheetName = workbook.SheetNames[0];
+                    for (let name of workbook.SheetNames) {
+                        let sheet = workbook.Sheets[name];
+                        let json = XLSX.utils.sheet_to_json(sheet);
+                        if (json.length > 0) { sheetName = name; break; }
+                    }
+
+                    let worksheet = workbook.Sheets[sheetName];
+                    let rawJson = XLSX.utils.sheet_to_json(worksheet);
+                    rawData = rawJson.map(normalizeRow);
+                    
+                    if (rawData.length === 0) {
+                        alert("Uploaded file appears empty.");
+                        return;
+                    }
+                    initializeDashboard();
+                } catch (error) {
+                    console.error("Error reading file:", error);
+                    alert("Error parsing Excel file.");
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        });
+
+        function initializeDashboard() {
+            activeFilters = {};
+            filteredData = [...rawData];
+            buildFilterUI();
+            updateDashboard();
+        }
+
+        function buildFilterUI() {
+            const container = document.getElementById('filters-container');
+            container.innerHTML = '';
+            
+            const uniqueYears = [...new Set(rawData.map(row => row['Year']))]
+                .filter(y => y != null && y !== '')
+                .map(y => Number(y))
+                .sort((a,b) => a - b);
+                
+            if (uniqueYears.length > 0) {
+                const yearDiv = document.createElement('div');
+                yearDiv.className = 'flex flex-col col-span-2 md:col-span-2 lg:col-span-2';
+                const optionsHTML = uniqueYears.map(y => `<option value="${y}">${y}</option>`).join('');
+                
+                yearDiv.innerHTML = `
+                    <label class="text-xs font-semibold text-slate-500 mb-1 truncate">Year Range</label>
+                    <div class="flex items-center gap-2">
+                        <select id="filter-year-start" class="bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded focus:ring-blue-500 focus:border-blue-500 block w-full p-2 cursor-pointer">
+                            <option value="ALL">Earliest</option>${optionsHTML}
+                        </select>
+                        <span class="text-slate-400 text-sm font-medium">to</span>
+                        <select id="filter-year-end" class="bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded focus:ring-blue-500 focus:border-blue-500 block w-full p-2 cursor-pointer">
+                            <option value="ALL">Latest</option>${optionsHTML}
+                        </select>
+                    </div>
+                `;
+                container.appendChild(yearDiv);
+
+                document.getElementById('filter-year-start').addEventListener('change', applyFilters);
+                document.getElementById('filter-year-end').addEventListener('change', applyFilters);
+            }
+            
+            filterColumns.forEach(col => {
+                const uniqueValues = [...new Set(rawData.map(row => {
+                    const val = row[col];
+                    return val != null ? String(val).trim() : 'Unknown';
+                }))].filter(v => v !== 'Unknown' && v !== '').sort();
+
+                if (uniqueValues.length === 0) return;
+
+                const labelText = getPluralLabel(col);
+                const div = document.createElement('div');
+                div.className = 'flex flex-col';
+                div.innerHTML = `
+                    <label class="text-xs font-semibold text-slate-500 mb-1 truncate" title="${col}">${col}</label>
+                    <select id="filter-${col.replace(/[^a-zA-Z0-9]/g, '-')}" data-col="${col}" class="bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded focus:ring-blue-500 focus:border-blue-500 block w-full p-2 transition-shadow cursor-pointer">
+                        <option value="ALL">${labelText}</option>
+                        ${uniqueValues.map(v => `<option value="${v}">${v}</option>`).join('')}
+                    </select>
+                `;
+                container.appendChild(div);
+
+                div.querySelector('select').addEventListener('change', (e) => {
+                    const colName = e.target.getAttribute('data-col');
+                    const val = e.target.value;
+                    if (val === 'ALL') { delete activeFilters[colName]; } 
+                    else { activeFilters[colName] = val; }
+                    applyFilters();
+                });
+            });
+        }
+
+        function applyFilters() {
+            const startYearSelect = document.getElementById('filter-year-start');
+            const endYearSelect = document.getElementById('filter-year-end');
+            
+            const startYear = startYearSelect && startYearSelect.value !== 'ALL' ? Number(startYearSelect.value) : -Infinity;
+            const endYear = endYearSelect && endYearSelect.value !== 'ALL' ? Number(endYearSelect.value) : Infinity;
+
+            filteredData = rawData.filter(row => {
+                if (row['Year'] != null && row['Year'] !== '') {
+                    const rowYear = Number(row['Year']);
+                    if (rowYear < startYear || rowYear > endYear) return false;
+                }
+                for (const col in activeFilters) {
+                    let cellValue = row[col] != null ? String(row[col]).trim() : 'Unknown';
+                    if (cellValue !== activeFilters[col]) return false;
+                }
+                return true;
+            });
+            updateDashboard();
+        }
+
+        document.getElementById('reset-filters').addEventListener('click', () => {
+            document.querySelectorAll('#filters-container select').forEach(select => select.value = 'ALL');
+            activeFilters = {};
+            applyFilters();
+        });
+
+        function updateDashboard() {
+            updateKPIs();
+            updateCharts();
+            updateStrategicCharts();
+            updateTrainersTable();
+            updateTrainingUndergoneTable();
+        }
+
+        function updateKPIs() {
+            const totalParticipation = filteredData.length;
+            const uniqueIds = new Set();
+            let totalHours = 0;
+
+            filteredData.forEach(row => {
+                if (row['Employee Id']) uniqueIds.add(row['Employee Id']);
+                totalHours += parseDuration(row['Duration']);
+            });
+
+            document.getElementById('kpi-total-participation').innerText = totalParticipation.toLocaleString();
+            document.getElementById('kpi-unique-participation').innerText = uniqueIds.size.toLocaleString();
+            document.getElementById('kpi-total-duration').innerHTML = `${Math.round(totalHours).toLocaleString()} <span class="text-lg text-slate-500 font-medium">hrs</span>`;
+        }
+
+        Chart.defaults.font.family = "'Inter', sans-serif";
+        Chart.defaults.color = "#64748b";
+
+        function initChart(ctxId, type, indexAxis = 'x', stacked = false) {
+            const ctx = document.getElementById(ctxId).getContext('2d');
+            if (charts[ctxId]) charts[ctxId].destroy();
+            
+            charts[ctxId] = new Chart(ctx, {
+                type: type,
+                data: { labels: [], datasets: [] },
+                options: {
+                    indexAxis: indexAxis,
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: stacked || type === 'doughnut' || type === 'line', position: 'top' } },
+                    scales: type === 'doughnut' ? {} : {
+                        x: { stacked: stacked, grid: { display: false } },
+                        y: { stacked: stacked, grid: { borderDash: [2, 4], color: '#e2e8f0' }, beginAtZero: true }
+                    }
+                }
+            });
+            return charts[ctxId];
+        }
+
+        function updateCharts() {
+            updateChartData('chart-category', aggregateData(filteredData, 'Category').slice(0, 10), 'doughnut');
+            updateChartData('chart-location', aggregateData(filteredData, 'Location').slice(0, 10), 'bar');
+            updateChartData('chart-ops', aggregateData(filteredData, 'Ops Head').slice(0, 10), 'bar');
+            updateChartData('chart-designation', aggregateData(filteredData, 'Designation').slice(0, 10), 'bar', 'y');
+        }
+
+        function updateChartData(ctxId, aggregatedData, type, indexAxis = 'x') {
+            const labels = aggregatedData.map(d => d[0]);
+            const values = aggregatedData.map(d => d[1]);
+            
+            if(!charts[ctxId]) initChart(ctxId, type, indexAxis);
+            const chart = charts[ctxId];
+
+            chart.data.labels = labels;
+            chart.data.datasets = [{
+                label: 'Count',
+                data: values,
+                backgroundColor: type === 'doughnut' ? ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444'] : '#3b82f6',
+                borderRadius: type === 'bar' ? 4 : 0
+            }];
+            chart.update();
+        }
+
+        function updateStrategicCharts() {
+            const categoriesMap = {};
+            filteredData.forEach(row => {
+                const cat = row['Category'] || 'Unknown';
+                if (cat.toLowerCase().includes('mandatory')) return;
+                const gender = row['Gender'] || 'Unspecified';
+                if (!categoriesMap[cat]) categoriesMap[cat] = { Male: 0, Female: 0, Total: 0 };
+                if (gender.toLowerCase().includes('female') || gender.toLowerCase() === 'f') categoriesMap[cat].Female++;
+                else if (gender.toLowerCase().includes('male') || gender.toLowerCase() === 'm') categoriesMap[cat].Male++;
+                categoriesMap[cat].Total++;
+            });
+
+            const sortedCats = Object.entries(categoriesMap).sort((a,b) => b[1].Total - a[1].Total).slice(0, 6);
+            const deiChart = initChart('chart-dei', 'bar', 'x', true);
+            deiChart.data.labels = sortedCats.map(c => c[0]);
+            deiChart.data.datasets = [
+                { label: 'Female', data: sortedCats.map(c => c[1].Female), backgroundColor: '#ec4899' },
+                { label: 'Male', data: sortedCats.map(c => c[1].Male), backgroundColor: '#3b82f6' }
+            ];
+            deiChart.update();
+
+            const mandatoryCompletions = {};
+            filteredData.forEach(row => {
+                const cat = row['Category'] || '';
+                if (!cat.toLowerCase().includes('mandatory')) return;
+                const parent = row['Parent Training'] || 'Other Mandatory';
+                mandatoryCompletions[parent] = (mandatoryCompletions[parent] || 0) + 1;
+            });
+
+            const mandAgg = Object.entries(mandatoryCompletions).sort((a,b) => b[1] - a[1]).slice(0, 8);
+            const mandChart = initChart('chart-mandatory-completion', 'bar', 'y');
+            mandChart.data.labels = mandAgg.map(d => d[0]);
+            mandChart.data.datasets = [{ label: 'Completions', data: mandAgg.map(d => d[1]), backgroundColor: '#10b981', borderRadius: 4 }];
+            mandChart.update();
+
+            const countryHours = {};
+            filteredData.forEach(row => {
+                const country = row['Country'] || 'Unknown';
+                countryHours[country] = (countryHours[country] || 0) + parseDuration(row['Duration']);
+            });
+            const countryAgg = Object.entries(countryHours).sort((a,b) => b[1] - a[1]).slice(0, 8);
+            const countryChart = initChart('chart-country-hours', 'bar');
+            countryChart.data.labels = countryAgg.map(d => d[0]);
+            countryChart.data.datasets = [{ label: 'Total Hours', data: countryAgg.map(d => Math.round(d[1])), backgroundColor: '#8b5cf6', borderRadius: 4 }];
+            countryChart.update();
+
+            const yearsSet = [...new Set(filteredData.map(r => r['Year']))].filter(y => y).sort();
+            const selfPacedByYear = {};
+            const iltByYear = {};
+
+            yearsSet.forEach(y => { selfPacedByYear[y] = 0; iltByYear[y] = 0; });
+
+            filteredData.forEach(row => {
+                const cat = row['Category'] || '';
+                if (cat.toLowerCase().includes('mandatory')) return;
+                const year = row['Year'];
+                if (!year) return;
+                const modality = (row['Modality'] || '').toLowerCase();
+
+                if (modality.includes('self') || modality.includes('cbt') || modality.includes('elearning')) {
+                    selfPacedByYear[year] = (selfPacedByYear[year] || 0) + 1;
+                } else {
+                    iltByYear[year] = (iltByYear[year] || 0) + 1;
+                }
+            });
+
+            const shiftChart = initChart('chart-modality-shift', 'line');
+            shiftChart.data.labels = yearsSet;
+            shiftChart.data.datasets = [
+                { label: 'Instructor-Led', data: yearsSet.map(y => iltByYear[y]), borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', fill: true, tension: 0.3 },
+                { label: 'Self-Paced', data: yearsSet.map(y => selfPacedByYear[y]), borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)', fill: true, tension: 0.3 }
+            ];
+            shiftChart.update();
+        }
+
+        function updateTrainersTable() {
+            const tbody = document.getElementById('trainers-table-body');
+            tbody.innerHTML = '';
+
+            const trainerMetrics = {};
+            strategicTrainersList.forEach(t => {
+                trainerMetrics[t] = { name: t, courses: new Set(), learners: new Set(), hours: 0 };
+            });
+
+            filteredData.forEach(row => {
+                const trainer = row["Trainer's Name"] || '';
+                if (!trainer) return;
+
+                const matchedName = strategicTrainersList.find(st => st.toLowerCase() === trainer.toLowerCase());
+                if (matchedName) {
+                    const m = trainerMetrics[matchedName];
+                    if (row['Parent Training']) m.courses.add(row['Parent Training']);
+                    if (row['Employee Id']) m.learners.add(row['Employee Id']);
+                    m.hours += parseDuration(row['Duration']);
+                }
+            });
+
+            const rowsToDisplay = Object.values(trainerMetrics)
+                .filter(m => m.courses.size > 0 || m.learners.size > 0)
+                .sort((a, b) => b.learners.size - a.learners.size);
+
+            if (rowsToDisplay.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-slate-400 italic border-b border-slate-100">No activity recorded for listed trainers in current selection.</td></tr>`;
+                return;
+            }
+
+            rowsToDisplay.forEach(m => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="p-3 font-medium text-slate-800 border-b border-slate-100">${m.name}</td>
+                    <td class="p-3 border-b border-slate-100">${m.courses.size}</td>
+                    <td class="p-3 font-semibold text-slate-700 border-b border-slate-100">${m.learners.size}</td>
+                    <td class="p-3 font-semibold text-indigo-600 border-b border-slate-100">${Math.round(m.hours)} hrs</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function updateTrainingUndergoneTable() {
+            const tbody = document.getElementById('training-undergone-table-body');
+            tbody.innerHTML = '';
+
+            const trainingMetrics = {};
+            
+            filteredData.forEach(row => {
+                const trainingName = row['Training Undergone'];
+                if (!trainingName || trainingName === 'Unknown') return;
+                
+                if (!trainingMetrics[trainingName]) {
+                    trainingMetrics[trainingName] = { completers: 0, hours: 0 };
+                }
+                
+                trainingMetrics[trainingName].completers += 1;
+                trainingMetrics[trainingName].hours += parseDuration(row['Duration']);
+            });
+
+            const rowsToDisplay = Object.entries(trainingMetrics)
+                .map(([name, metrics]) => ({ name, ...metrics }))
+                .sort((a, b) => b.completers - a.completers);
+
+            if (rowsToDisplay.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="3" class="p-4 text-center text-slate-400 italic border-b border-slate-100">No individual trainings matched the current filter selection.</td></tr>`;
+                return;
+            }
+
+            rowsToDisplay.forEach(m => {
+                const tr = document.createElement('tr');
+                const truncatedName = m.name.length > 55 ? m.name.substring(0, 55) + '...' : m.name;
+                tr.innerHTML = `
+                    <td class="p-3 font-medium text-slate-800 border-b border-slate-100" title="${m.name}">${truncatedName}</td>
+                    <td class="p-3 font-semibold text-slate-700 border-b border-slate-100">${m.completers}</td>
+                    <td class="p-3 font-semibold text-emerald-600 border-b border-slate-100">${Math.round(m.hours)} hrs</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        document.getElementById('btn-set-api-key').addEventListener('click', () => {
+            const currentKey = localStorage.getItem('gemini_api_key') || '';
+            const key = prompt("Enter your Google Gemini API Key:", currentKey);
+            if (key !== null) {
+                localStorage.setItem('gemini_api_key', key.trim());
+                alert("API Key saved successfully!");
+            }
+        });
+
+        document.getElementById('btn-generate-insights').addEventListener('click', async () => {
+            if (filteredData.length === 0) {
+                alert("Please upload data or load sample data first.");
+                return;
+            }
+
+            const btn = document.getElementById('btn-generate-insights');
+            const emptyState = document.getElementById('insights-empty-state');
+            const loadingState = document.getElementById('insights-loading');
+            const insightsContainer = document.getElementById('gemini-insights');
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Generating...';
+            emptyState.classList.add('hidden');
+            insightsContainer.classList.add('hidden');
+            loadingState.classList.remove('hidden');
+            loadingState.classList.add('flex');
+
+            const apiKey = localStorage.getItem('gemini_api_key') || '';
+
+            if (apiKey) {
+                try {
+                    const topLoc = aggregateData(filteredData, 'Location').slice(0,3).map(d=>`${d[0]}: ${d[1]}`).join(', ');
+                    const topDesig = aggregateData(filteredData, 'Designation').slice(0,3).map(d=>`${d[0]}: ${d[1]}`).join(', ');
+                    const topCat = aggregateData(filteredData, 'Category').slice(0,3).map(d=>`${d[0]}: ${d[1]}`).join(', ');
+                    
+                    let prompt = `Act as an expert L&D Consultant. Provide a concise, 2-paragraph executive insight summary followed by 3 strategic bulleted recommendations based on this L&D dataset:\n\n`;
+                    prompt += `- Total Enrollments: ${filteredData.length}\n`;
+                    prompt += `- Top Categories: ${topCat}\n`;
+                    prompt += `- Top Locations: ${topLoc}\n`;
+                    prompt += `- Top Designations: ${topDesig}\n\n`;
+                    prompt += `Format output in simple HTML with <h3>, <p>, and <ul><li> structure. Do not include markdown codeblocks.`;
+
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                    });
+
+                    const result = await response.json();
+                    if (result.candidates && result.candidates[0]?.content?.parts[0]?.text) {
+                        insightsContainer.innerHTML = result.candidates[0].content.parts[0].text;
+                        showInsights();
+                        return;
+                    }
+                } catch (e) {
+                    console.warn("API request failed, falling back to local analysis engine.", e);
+                }
+            }
+
+            generateLocalInsights();
+            showInsights();
+
+            function showInsights() {
+                btn.disabled = false;
+                btn.innerHTML = 'Generate Gemini Insights';
+                loadingState.classList.remove('flex');
+                loadingState.classList.add('hidden');
+                insightsContainer.classList.remove('hidden');
+            }
+        });
+
+        function generateLocalInsights() {
+            const total = filteredData.length;
+            const uniqueIds = new Set(filteredData.map(r => r['Employee Id']).filter(Boolean)).size;
+            const topCat = aggregateData(filteredData, 'Category').slice(0, 2).map(d=>d[0]).join(' and ');
+            const topLoc = aggregateData(filteredData, 'Location').slice(0, 2).map(d=>d[0]).join(' and ');
+
+            const html = `
+                <h3 class="text-indigo-900 font-bold text-base mb-1">Executive Performance Summary</h3>
+                <p>The current selection reflects a total enrollment volume of <strong>${total.toLocaleString()}</strong> across <strong>${uniqueIds.toLocaleString()}</strong> distinct learners. Training engagement is primarily concentrated in <strong>${topCat || 'core learning categories'}</strong>, with the highest participation originating from <strong>${topLoc || 'key regional hubs'}</strong>.</p>
+                
+                <p>Delivery metrics demonstrate strong adoption across core operational teams. However, balancing discretionary capability building (such as AI, Technical, and Leadership) alongside baseline compliance remains a key strategic priority for maximizing organizational impact.</p>
+
+                <h3 class="text-indigo-900 font-bold text-base mt-4 mb-1">Strategic Recommendations</h3>
+                <ul class="list-disc pl-5 space-y-1">
+                    <li><strong>Accelerate Discretionary Upskilling:</strong> Expand self-paced offerings in high-demand technical and AI frameworks to scale learning reach efficiently.</li>
+                    <li><strong>Optimize Trainer Utilization:</strong> Leverage internal subject matter experts to drive targeted, high-impact leadership workshops in priority locations.</li>
+                    <li><strong>Ensure Inclusive Learning Access:</strong> Monitor gender and regional participation across non-mandatory categories to guarantee equitable development opportunities.</li>
+                </ul>
+            `;
+            document.getElementById('gemini-insights').innerHTML = html;
+        }
+
+        document.getElementById('load-sample-btn').addEventListener('click', () => {
+            const categories = ['Behavioral/soft skills', 'Technical', 'Mandatory', 'AI & data analytics', 'Growth Hub'];
+            const parents = ['LEAD', 'Project Management', 'Information Security', 'Python', 'New Hire Orientation'];
+            const modalities = ['Instructor-Led', 'Self-Paced'];
+            const genders = ['Male', 'Female'];
+            const entities = ['Straive India', 'Straive Philippines', 'Straive US'];
+            const locations = ['Bengaluru', 'Manila', 'Chennai', 'New York', 'London'];
+            const functions = ['Operations', 'Technology', 'HR', 'Finance', 'Sales'];
+            const desigs = ['Associate', 'Manager', 'Team Lead', 'Director', 'Analyst'];
+            
+            const sampleData = [];
+            for(let i = 0; i < 500; i++) {
+                const parent = parents[Math.floor(Math.random() * parents.length)];
+                sampleData.push({
+                    "Year": [2024, 2025, 2026][Math.floor(Math.random() * 3)],
+                    "Parent Training": parent,
+                    "Training Undergone": parent + " Basics " + (Math.floor(Math.random() * 3) + 1),
+                    "Modality": modalities[Math.floor(Math.random() * modalities.length)],
+                    "Category": categories[Math.floor(Math.random() * categories.length)],
+                    "Gender": genders[Math.floor(Math.random() * genders.length)],
+                    "Entity": entities[Math.floor(Math.random() * entities.length)],
+                    "Segment": "Core",
+                    "Function": functions[Math.floor(Math.random() * functions.length)],
+                    "Location": locations[Math.floor(Math.random() * locations.length)],
+                    "Country": ["India", "Philippines", "United States"][Math.floor(Math.random() * 3)],
+                    "CEO-1": ["Global CEO", "Regional Head"][Math.floor(Math.random() * 2)],
+                    "BU Head": "John Doe",
+                    "Ops Head": ["Jane Smith", "Mike Ross", "Harvey Specter"][Math.floor(Math.random() * 3)],
+                    "Designation": desigs[Math.floor(Math.random() * desigs.length)],
+                    "Trainer'S Name": strategicTrainersList[Math.floor(Math.random() * strategicTrainersList.length)],
+                    "Employee Id": `EMP${Math.floor(Math.random() * 150) + 1000}`,
+                    "Duration [Hh:Mm]": `${Math.floor(Math.random() * 4) + 1}:30`,
+                    "Training Status": "Completed"
+                });
+            }
+            rawData = sampleData.map(normalizeRow);
+            initializeDashboard();
+        });
+
+        ['chart-category', 'chart-location', 'chart-ops', 'chart-designation', 'chart-dei', 'chart-mandatory-completion', 'chart-country-hours', 'chart-modality-shift'].forEach(id => {
+            initChart(id, 'bar');
+        });
+
+    </script>
+</body>
+</html>
